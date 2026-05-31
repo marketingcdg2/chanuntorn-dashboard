@@ -58,6 +58,7 @@ export default function App() {
 
   // ดึงข้อมูลหลัก — ทุก endpoint พร้อมกัน
   const main = useAdData(projectId, since, until);
+  const { waking } = main;
   // ดึงข้อมูลเปรียบเทียบ — ย้อนหลังตามจำนวนวันที่เลือก
   const cmp  = useAdData(compareMode ? projectId : null, cmpRange.since, cmpRange.until);
 
@@ -98,6 +99,11 @@ export default function App() {
 
       <main className="main">
         {/* Loading */}
+        {main.waking && !main.loading && (
+          <div className="loading-bar" style={{background:"#FFF9DB",borderColor:"#F59F00",color:"#E67700"}}>
+            ☕ กำลังปลุก server... รอสักครู่ประมาณ 30-50 วินาที
+          </div>
+        )}
         {main.loading && (
           <div className="loading-bar">⏳ กำลังดึงข้อมูลจาก Meta...</div>
         )}
