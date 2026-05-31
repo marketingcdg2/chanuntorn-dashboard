@@ -1,8 +1,9 @@
-// components/ContentGrid.jsx — upload รูปผ่าน Cloudinary via backend
+// components/ContentGrid.jsx — Cloudinary upload + localStorage cache
 import { useState, useEffect } from "react";
 import { fmt } from "../utils/format";
 
 const BACKEND    = "https://chanuntorn-backend.onrender.com";
+const STORAGE_KEY = "content_images";
 const OBJ_COLOR  = { Awareness:"var(--teal)", Engagement:"var(--blue)" };
 const OBJ_ICON   = { Awareness:"📢", Engagement:"💬" };
 const SORT_OPTIONS = [
@@ -36,18 +37,40 @@ function sortItems(items, sortBy) {
   return [...aware.sort(sortFn),...engag.sort(sortFn)];
 }
 
-export default function ContentGrid({ ads }) {
-  const [images,   setImages]   = useState({});
-  const [lightbox, setLightbox] = useState(null);
-  const [sortBy,   setSortBy]   = useState("default");
-  const [uploading,setUploading]= useState({});
+// โหลดรูปจาก localStorage
+function loadCachedImages() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch { return {}; }
+}
 
-  // โหลดรูปที่มีอยู่แล้วจาก Cloudinary ตอนเริ่ม
+// บันทึกรูปลง localStorage
+function saveCachedImages(images) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(images)); }
+  catch {}
+}
+
+export default function ContentGrid({ ads }) {
+  const [images,    setImages]    = useState(loadCachedImages); // โหลดจาก cache ทันที
+  const [lightbox,  setLightbox]  = useState(null);
+  const [sortBy,    setSortBy]    = useState("default");
+  const [uploading, setUploading] = useState({});
+
+  // sync รูปจาก Cloudinary ใน background (ไม่ block UI)
   useEffect(() => {
     fetch(`${BACKEND}/api/images`)
       .then(r=>r.json())
-      .then(d=>{ if(d.images) setImages(d.images); })
-      .catch(()=>{});
+      .then(d=>{
+        if(d.images) {
+          setImages(prev => {
+            const merged = { ...prev, ...d.images };
+            saveCachedImages(merged);
+            return merged;
+          });
+        }
+      })
+      .catch(()=>{}); // ถ้า backend ยัง sleep อยู่ก็ใช้ cache ไปก่อน
   }, []);
 
   if (!ads?.length) return null;
@@ -58,6 +81,13 @@ export default function ContentGrid({ ads }) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // แสดง preview ทันทีก่อน upload
+    const previewUrl = URL.createObjectURL(file);
+    setImages(prev => {
+      const updated = { ...prev, [key]: previewUrl };
+      return updated;
+    });
+
     setUploading(prev=>({...prev,[key]:true}));
     const formData = new FormData();
     formData.append("image", file);
@@ -66,7 +96,14 @@ export default function ContentGrid({ ads }) {
     try {
       const res  = await fetch(`${BACKEND}/api/upload`, { method:"POST", body:formData });
       const data = await res.json();
-      if (data.url) setImages(prev=>({...prev,[key]:data.url}));
+      if (data.url) {
+        // แทน preview ด้วย URL จริงจาก Cloudinary แล้ว save cache
+        setImages(prev => {
+          const updated = { ...prev, [key]: data.url };
+          saveCachedImages(updated);
+          return updated;
+        });
+      }
     } catch(err) {
       alert("อัปโหลดไม่สำเร็จ: " + err.message);
     } finally {
@@ -76,16 +113,21 @@ export default function ContentGrid({ ads }) {
 
   async function handleImageDelete(key) {
     if (!confirm("ลบรูปนี้ออก?")) return;
+    // ลบออกจาก UI และ cache ทันที
+    setImages(prev => {
+      const updated = { ...prev };
+      delete updated[key];
+      saveCachedImages(updated);
+      return updated;
+    });
+    // ลบจาก Cloudinary ใน background
     try {
       await fetch(`${BACKEND}/api/upload`, {
         method:"DELETE",
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify({ key }),
       });
-      setImages(prev=>{ const n={...prev}; delete n[key]; return n; });
-    } catch(err) {
-      alert("ลบไม่สำเร็จ: " + err.message);
-    }
+    } catch {}
   }
 
   return (
@@ -110,32 +152,22 @@ export default function ContentGrid({ ads }) {
 
           return (
             <div key={key} className="checklist-item">
-              {/* ภาพ */}
               <div className="cl-thumb">
                 {imgUrl ? (
                   <div style={{position:"relative"}}>
                     <img src={imgUrl} alt={c.name} className="cl-img"
                       title="คลิกขยายรูป" style={{cursor:"zoom-in"}}
                       onClick={()=>setLightbox(imgUrl)} />
-                    {/* ปุ่มลบรูป */}
-                    <button onClick={()=>handleImageDelete(key)}
-                      title="ลบรูป"
-                      style={{
-                        position:"absolute",top:"4px",right:"4px",
-                        background:"rgba(240,62,62,.85)",border:"none",
-                        color:"#fff",borderRadius:"50%",width:"20px",height:"20px",
-                        fontSize:"11px",cursor:"pointer",display:"flex",
-                        alignItems:"center",justifyContent:"center",lineHeight:1
-                      }}>✕</button>
-                    {/* ปุ่มเปลี่ยนรูป */}
+                    <button onClick={()=>handleImageDelete(key)} title="ลบรูป"
+                      style={{position:"absolute",top:"4px",right:"4px",
+                        background:"rgba(240,62,62,.85)",border:"none",color:"#fff",
+                        borderRadius:"50%",width:"20px",height:"20px",fontSize:"11px",
+                        cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
                     <label title="เปลี่ยนรูป"
-                      style={{
-                        position:"absolute",bottom:"4px",right:"4px",
-                        background:"rgba(59,91,219,.85)",border:"none",
-                        color:"#fff",borderRadius:"50%",width:"20px",height:"20px",
-                        fontSize:"11px",cursor:"pointer",display:"flex",
-                        alignItems:"center",justifyContent:"center"
-                      }}>
+                      style={{position:"absolute",bottom:"4px",right:"4px",
+                        background:"rgba(59,91,219,.85)",border:"none",color:"#fff",
+                        borderRadius:"50%",width:"20px",height:"20px",fontSize:"11px",
+                        cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
                       ✎
                       <input type="file" accept="image/*" style={{display:"none"}}
                         onChange={e=>handleImageUpload(key,e)} />
@@ -144,11 +176,9 @@ export default function ContentGrid({ ads }) {
                 ) : (
                   <label className="cl-img-placeholder" title="คลิกเพิ่มรูป">
                     {isUploading
-                      ? <span style={{fontSize:"11px",color:"var(--blue)"}}>กำลังอัปโหลด...</span>
-                      : <>
-                          <span className="cl-img-icon">{OBJ_ICON[c.objective]??"🖼"}</span>
-                          <span className="cl-img-hint">+ รูป</span>
-                        </>
+                      ? <span style={{fontSize:"10px",color:"var(--blue)",textAlign:"center",padding:"4px"}}>กำลังอัปโหลด...</span>
+                      : <><span className="cl-img-icon">{OBJ_ICON[c.objective]??"🖼"}</span>
+                          <span className="cl-img-hint">+ รูป</span></>
                     }
                     <input type="file" accept="image/*" style={{display:"none"}}
                       onChange={e=>handleImageUpload(key,e)} />
@@ -156,7 +186,6 @@ export default function ContentGrid({ ads }) {
                 )}
               </div>
 
-              {/* เนื้อหา */}
               <div className="cl-body">
                 <div className="cl-top">
                   <span className="cl-name">{c.name}</span>
