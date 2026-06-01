@@ -124,7 +124,7 @@ export default function App() {
             <SpendChart      campaigns={main.campaigns} budget={budget} />
             <AgeGenderCharts audience={main.audience}   campaigns={main.campaigns} />
             <RegionTable     regions={main.regions}     audience={main.audience}  campaigns={main.campaigns} />
-            <ContentGrid     ads={main.ads} />
+            <ContentGrid     ads={main.ads} projectId={projectId} />
           </>
         )}
       </main>

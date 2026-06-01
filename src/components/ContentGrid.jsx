@@ -1,11 +1,10 @@
-// components/ContentGrid.jsx — Cloudinary upload + localStorage cache
+// components/ContentGrid.jsx — Cloudinary upload + localStorage cache แยกตามโปรเจค
 import { useState, useEffect } from "react";
 import { fmt } from "../utils/format";
 
-const BACKEND    = "https://chanuntorn-backend.onrender.com";
-const STORAGE_KEY = "content_images";
-const OBJ_COLOR  = { Awareness:"var(--teal)", Engagement:"var(--blue)" };
-const OBJ_ICON   = { Awareness:"📢", Engagement:"💬" };
+const BACKEND     = "https://chanuntorn-backend.onrender.com";
+const OBJ_COLOR   = { Awareness:"var(--teal)", Engagement:"var(--blue)" };
+const OBJ_ICON    = { Awareness:"📢", Engagement:"💬" };
 const SORT_OPTIONS = [
   { value:"default",  label:"ค่าเริ่มต้น"   },
   { value:"spend",    label:"ค่าใช้จ่าย ↓" },
@@ -13,10 +12,24 @@ const SORT_OPTIONS = [
   { value:"messages", label:"ข้อความ ↓"     },
 ];
 
+function storageKey(projectId) { return `content_images_${projectId}`; }
+
+function loadCachedImages(projectId) {
+  try {
+    const saved = localStorage.getItem(storageKey(projectId));
+    return saved ? JSON.parse(saved) : {};
+  } catch { return {}; }
+}
+
+function saveCachedImages(projectId, images) {
+  try { localStorage.setItem(storageKey(projectId), JSON.stringify(images)); }
+  catch {}
+}
+
 function groupByNameAndObjective(ads) {
   const map = {};
   (ads||[]).filter(a=>a.spend>0).forEach(a=>{
-    const key=`${a.name}__${a.objective}`;
+    const key = `${a.name}__${a.objective}`;
     if(!map[key]) map[key]={name:a.name,objective:a.objective,spend:0,reach:0,impressions:0,clicks:0,messages:0};
     map[key].spend+=a.spend??0; map[key].reach+=a.reach??0;
     map[key].impressions+=a.impressions??0; map[key].clicks+=a.clicks??0;
@@ -28,7 +41,7 @@ function groupByNameAndObjective(ads) {
 function sortItems(items, sortBy) {
   const aware = items.filter(i=>i.objective==="Awareness");
   const engag = items.filter(i=>i.objective==="Engagement");
-  const sortFn = (a,b)=>{
+  const sortFn = (a,b) => {
     if(sortBy!=="default") return b[sortBy]-a[sortBy];
     if(b.messages!==a.messages) return b.messages-a.messages;
     if(b.reach!==a.reach) return b.reach-a.reach;
@@ -37,41 +50,33 @@ function sortItems(items, sortBy) {
   return [...aware.sort(sortFn),...engag.sort(sortFn)];
 }
 
-// โหลดรูปจาก localStorage
-function loadCachedImages() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : {};
-  } catch { return {}; }
-}
-
-// บันทึกรูปลง localStorage
-function saveCachedImages(images) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(images)); }
-  catch {}
-}
-
-export default function ContentGrid({ ads }) {
-  const [images,    setImages]    = useState(loadCachedImages); // โหลดจาก cache ทันที
+export default function ContentGrid({ ads, projectId }) {
+  const [images,    setImages]    = useState(() => loadCachedImages(projectId));
   const [lightbox,  setLightbox]  = useState(null);
   const [sortBy,    setSortBy]    = useState("default");
   const [uploading, setUploading] = useState({});
 
-  // sync รูปจาก Cloudinary ใน background (ไม่ block UI)
+  // โหลด cache ใหม่ทุกครั้งที่เปลี่ยนโปรเจค
   useEffect(() => {
-    fetch(`${BACKEND}/api/images`)
+    setImages(loadCachedImages(projectId));
+  }, [projectId]);
+
+  // sync รูปจาก Cloudinary ใน background แยกตามโปรเจค
+  useEffect(() => {
+    if (!projectId) return;
+    fetch(`${BACKEND}/api/images?project=${projectId}`)
       .then(r=>r.json())
       .then(d=>{
         if(d.images) {
           setImages(prev => {
             const merged = { ...prev, ...d.images };
-            saveCachedImages(merged);
+            saveCachedImages(projectId, merged);
             return merged;
           });
         }
       })
-      .catch(()=>{}); // ถ้า backend ยัง sleep อยู่ก็ใช้ cache ไปก่อน
-  }, []);
+      .catch(()=>{});
+  }, [projectId]);
 
   if (!ads?.length) return null;
   const raw   = groupByNameAndObjective(ads);
@@ -81,26 +86,23 @@ export default function ContentGrid({ ads }) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // แสดง preview ทันทีก่อน upload
+    // แสดง preview ทันที
     const previewUrl = URL.createObjectURL(file);
-    setImages(prev => {
-      const updated = { ...prev, [key]: previewUrl };
-      return updated;
-    });
+    setImages(prev => ({ ...prev, [key]: previewUrl }));
 
     setUploading(prev=>({...prev,[key]:true}));
     const formData = new FormData();
     formData.append("image", file);
-    formData.append("key", key);
+    formData.append("key", `${projectId}__${key}`); // เพิ่ม projectId ใน key
+    formData.append("project", projectId);
 
     try {
       const res  = await fetch(`${BACKEND}/api/upload`, { method:"POST", body:formData });
       const data = await res.json();
-      if (data.url) {
-        // แทน preview ด้วย URL จริงจาก Cloudinary แล้ว save cache
+      if(data.url) {
         setImages(prev => {
           const updated = { ...prev, [key]: data.url };
-          saveCachedImages(updated);
+          saveCachedImages(projectId, updated);
           return updated;
         });
       }
@@ -113,19 +115,17 @@ export default function ContentGrid({ ads }) {
 
   async function handleImageDelete(key) {
     if (!confirm("ลบรูปนี้ออก?")) return;
-    // ลบออกจาก UI และ cache ทันที
     setImages(prev => {
       const updated = { ...prev };
       delete updated[key];
-      saveCachedImages(updated);
+      saveCachedImages(projectId, updated);
       return updated;
     });
-    // ลบจาก Cloudinary ใน background
     try {
       await fetch(`${BACKEND}/api/upload`, {
         method:"DELETE",
         headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ key }),
+        body: JSON.stringify({ key: `${projectId}__${key}` }),
       });
     } catch {}
   }
@@ -146,8 +146,8 @@ export default function ContentGrid({ ads }) {
 
       <div className="checklist-wrap">
         {items.map(c=>{
-          const key    = `${c.name}__${c.objective}`;
-          const imgUrl = images[key];
+          const key     = `${c.name}__${c.objective}`;
+          const imgUrl  = images[key];
           const isUploading = uploading[key];
 
           return (
