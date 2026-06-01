@@ -61,21 +61,38 @@ export default function ContentGrid({ ads, projectId }) {
     setImages(loadCachedImages(projectId));
   }, [projectId]);
 
-  // sync รูปจาก Cloudinary ใน background แยกตามโปรเจค
+  // sync รูปจาก Cloudinary ใน background แยกตามโปรเจค — retry ทุก 3 วินาทีถ้า backend ยังหลับ
   useEffect(() => {
     if (!projectId) return;
-    fetch(`${BACKEND}/api/images?project=${projectId}`)
-      .then(r=>r.json())
-      .then(d=>{
-        if(d.images) {
-          setImages(prev => {
-            const merged = { ...prev, ...d.images };
-            saveCachedImages(projectId, merged);
-            return merged;
-          });
-        }
-      })
-      .catch(()=>{});
+    let attempts = 0;
+    const maxAttempts = 20; // retry สูงสุด 20 ครั้ง (60 วินาที)
+    let timer = null;
+
+    function tryFetch() {
+      fetch(`${BACKEND}/api/images?project=${projectId}`)
+        .then(r => {
+          if (!r.ok) throw new Error("not ready");
+          return r.json();
+        })
+        .then(d => {
+          if(d.images) {
+            setImages(prev => {
+              const merged = { ...prev, ...d.images };
+              saveCachedImages(projectId, merged);
+              return merged;
+            });
+          }
+        })
+        .catch(() => {
+          attempts++;
+          if (attempts < maxAttempts) {
+            timer = setTimeout(tryFetch, 3000); // retry ทุก 3 วินาที
+          }
+        });
+    }
+
+    tryFetch();
+    return () => { if (timer) clearTimeout(timer); };
   }, [projectId]);
 
   if (!ads?.length) return null;
