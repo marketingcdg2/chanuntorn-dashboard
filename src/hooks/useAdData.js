@@ -57,11 +57,11 @@ export function useAdData(projectId, since, until) {
       fetchWithWakeup(`${BACKEND}/api/regions?${params}`),
     ])
       .then(([ins, ads, aud, reg, adsets]) => {
-        setCampaigns(ins.data || []);
-        setAds(ads.data || []);
-        setAudience(aud.data || []);
-        setRegions(reg.data || []);
-        setAdsets(adsets.data || []);
+        setCampaigns(ins?.data || []);
+        setAds(ads?.data || []);
+        setAudience(aud?.data || []);
+        setRegions(reg?.data || []);
+        setAdsets(adsets?.data || []);
         setWaking(false);
       })
       .catch(err => {
