@@ -10,6 +10,7 @@ import SpendChart      from "./components/SpendChart";
 import AgeGenderCharts from "./components/AgeGenderCharts";
 import RegionTable     from "./components/RegionTable";
 import ContentGrid     from "./components/ContentGrid";
+import AdSetStats     from "./components/AdSetStats";
 import DateRangePicker from "./components/DateRangePicker";
 
 const PROJECTS = [
@@ -59,6 +60,7 @@ export default function App() {
   // ดึงข้อมูลหลัก — ทุก endpoint พร้อมกัน
   const main = useAdData(projectId, since, until);
   const { waking } = main;
+  const adsets = main.adsets ?? [];
   // ดึงข้อมูลเปรียบเทียบ — ย้อนหลังตามจำนวนวันที่เลือก
   const cmp  = useAdData(compareMode ? projectId : null, cmpRange.since, cmpRange.until);
 
@@ -125,6 +127,7 @@ export default function App() {
             <AgeGenderCharts audience={main.audience}   campaigns={main.campaigns} />
             <RegionTable     regions={main.regions}     audience={main.audience}  campaigns={main.campaigns} />
             <ContentGrid     ads={main.ads} projectId={projectId} />
+            <AdSetStats      adsets={adsets} />
           </>
         )}
       </main>

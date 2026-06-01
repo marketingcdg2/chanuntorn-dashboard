@@ -14,6 +14,7 @@ export function useAdData(projectId, since, until) {
   const [ads,       setAds]       = useState([]);
   const [audience,  setAudience]  = useState([]);
   const [regions,   setRegions]   = useState([]);
+  const [adsets,    setAdsets]    = useState([]);
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState(null);
   const [waking,    setWaking]    = useState(false); // backend กำลังตื่น
@@ -55,11 +56,12 @@ export function useAdData(projectId, since, until) {
       fetchWithWakeup(`${BACKEND}/api/audience?${params}`),
       fetchWithWakeup(`${BACKEND}/api/regions?${params}`),
     ])
-      .then(([ins, ads, aud, reg]) => {
+      .then(([ins, ads, aud, reg, adsets]) => {
         setCampaigns(ins.data || []);
         setAds(ads.data || []);
         setAudience(aud.data || []);
         setRegions(reg.data || []);
+        setAdsets(adsets.data || []);
         setWaking(false);
       })
       .catch(err => {
@@ -69,5 +71,5 @@ export function useAdData(projectId, since, until) {
       .finally(() => setLoading(false));
   }, [projectId, since, until]);
 
-  return { campaigns, ads, audience, regions, loading, error, waking };
+  return { campaigns, ads, audience, regions, adsets, loading, error, waking };
 }
