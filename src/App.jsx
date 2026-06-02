@@ -1,14 +1,12 @@
 // App.jsx
 import { useState, useEffect } from "react";
 import { useAdData }      from "./hooks/useAdData";
-import { fmt }            from "./utils/format";
 
 import Header          from "./components/Header";
 import KpiGrid         from "./components/KpiGrid";
 import CompareKpi      from "./components/CompareKpi";
 import SpendChart      from "./components/SpendChart";
 import AgeGenderCharts from "./components/AgeGenderCharts";
-import AudienceTable   from "./components/AudienceTable";
 import RegionTable     from "./components/RegionTable";
 import ContentGrid     from "./components/ContentGrid";
 import AdSetStats      from "./components/AdSetStats";
@@ -57,9 +55,8 @@ export default function App() {
   }
 
   const main = useAdData(projectId, since, until);
-  const adsets = main.adsets ?? [];
   const adsetNames = main.adsetNames ?? [];
-  const cmp  = useAdData(compareMode ? projectId : null, cmpRange.since, cmpRange.until);
+  const cmp = useAdData(compareMode ? projectId : null, cmpRange.since, cmpRange.until);
 
   const project   = PROJECTS.find(p => p.id === projectId);
   const dateLabel = `${since} → ${until}`;
@@ -119,10 +116,9 @@ export default function App() {
                   campaigns={main.campaigns} ads={main.ads}
                   budget={budget}            onBudgetChange={setBudget} />}
             <SpendChart      campaigns={main.campaigns} budget={budget} />
-            <AgeGenderCharts audience={main.audience}   campaigns={main.campaigns} />
-            <AudienceTable   audience={main.audience} />
-            <RegionTable     regions={main.regions}     audience={main.audience}  campaigns={main.campaigns} />
             <AdSetStats      adsetNames={adsetNames} />
+            <AgeGenderCharts audience={main.audience} campaigns={main.campaigns} />
+            <RegionTable     regions={main.regions}   audience={main.audience} campaigns={main.campaigns} />
             <ContentGrid     ads={main.ads} projectId={projectId} />
           </>
         )}
