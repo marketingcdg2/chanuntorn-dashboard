@@ -1,26 +1,4 @@
 {
-<<<<<<< HEAD
-  "name": "chanuntorn-backend",
-  "version": "1.0.0",
-  "description": "",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "dependencies": {
-    "cloudinary": "^1.41.3",
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "multer": "^1.4.5-lts.2",
-    "node-fetch": "^3.3.2"
-  }
-}
-=======
   "name": "chanuntorn-dashboard",
   "private": true,
   "version": "0.0.0",
@@ -47,4 +25,3 @@
     "vite": "^8.0.12"
   }
 }
->>>>>>> 662156627eb64eb12995db883bd5890f7d5f79de
