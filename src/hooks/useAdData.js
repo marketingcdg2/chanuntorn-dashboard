@@ -17,7 +17,7 @@ export function useAdData(projectId, since, until) {
   const [adsets,    setAdsets]    = useState([]);
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState(null);
-  const [waking,    setWaking]    = useState(false); // backend กำลังตื่น
+  const [waking,    setWaking]    = useState(false);
 
   useEffect(() => {
     if (!projectId || !since || !until) return;
@@ -29,7 +29,7 @@ export function useAdData(projectId, since, until) {
     setWaking(false);
 
     const params  = `account_id=${accountId}&since=${since}&until=${until}`;
-    const timeout = 60000; // รอ backend ตื่นสูงสุด 60 วินาที
+    const timeout = 60000;
 
     async function fetchWithWakeup(url) {
       const controller = new AbortController();
@@ -45,7 +45,6 @@ export function useAdData(projectId, since, until) {
       }
     }
 
-    // ตรวจสอบว่า backend ตื่นไหม ถ้ายังหลับอยู่แสดง waking state
     fetch(`${BACKEND}/api/insights?${params}`)
       .then(() => setWaking(false))
       .catch(() => setWaking(true));
@@ -55,6 +54,7 @@ export function useAdData(projectId, since, until) {
       fetchWithWakeup(`${BACKEND}/api/ads?${params}`),
       fetchWithWakeup(`${BACKEND}/api/audience?${params}`),
       fetchWithWakeup(`${BACKEND}/api/regions?${params}`),
+      fetchWithWakeup(`${BACKEND}/api/adsets?${params}`),
     ])
       .then(([ins, ads, aud, reg, adsets]) => {
         setCampaigns(ins?.data || []);
