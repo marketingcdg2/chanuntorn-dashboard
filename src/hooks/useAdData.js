@@ -1,4 +1,4 @@
-// hooks/useAdData.js — ดึงข้อมูลจาก backend พร้อม retry เมื่อ backend หลับ
+// hooks/useAdData.js
 import { useState, useEffect } from "react";
 
 const BACKEND = "https://chanuntorn-backend.onrender.com";
@@ -10,14 +10,15 @@ const ACCOUNTS = {
 };
 
 export function useAdData(projectId, since, until) {
-  const [campaigns, setCampaigns] = useState([]);
-  const [ads,       setAds]       = useState([]);
-  const [audience,  setAudience]  = useState([]);
-  const [regions,   setRegions]   = useState([]);
-  const [adsets,    setAdsets]    = useState([]);
-  const [loading,   setLoading]   = useState(false);
-  const [error,     setError]     = useState(null);
-  const [waking,    setWaking]    = useState(false);
+  const [campaigns,   setCampaigns]   = useState([]);
+  const [ads,         setAds]         = useState([]);
+  const [audience,    setAudience]    = useState([]);
+  const [regions,     setRegions]     = useState([]);
+  const [adsets,      setAdsets]      = useState([]);
+  const [adsetNames,  setAdsetNames]  = useState([]);
+  const [loading,     setLoading]     = useState(false);
+  const [error,       setError]       = useState(null);
+  const [waking,      setWaking]      = useState(false);
 
   useEffect(() => {
     if (!projectId || !since || !until) return;
@@ -55,13 +56,15 @@ export function useAdData(projectId, since, until) {
       fetchWithWakeup(`${BACKEND}/api/audience?${params}`),
       fetchWithWakeup(`${BACKEND}/api/regions?${params}`),
       fetchWithWakeup(`${BACKEND}/api/adsets?${params}`),
+      fetchWithWakeup(`${BACKEND}/api/adset-names?${params}`),
     ])
-      .then(([ins, ads, aud, reg, adsets]) => {
+      .then(([ins, ads, aud, reg, adsets, adsetNames]) => {
         setCampaigns(ins?.data || []);
         setAds(ads?.data || []);
         setAudience(aud?.data || []);
         setRegions(reg?.data || []);
         setAdsets(adsets?.data || []);
+        setAdsetNames(adsetNames?.data || []);
         setWaking(false);
       })
       .catch(err => {
@@ -71,5 +74,5 @@ export function useAdData(projectId, since, until) {
       .finally(() => setLoading(false));
   }, [projectId, since, until]);
 
-  return { campaigns, ads, audience, regions, adsets, loading, error, waking };
+  return { campaigns, ads, audience, regions, adsets, adsetNames, loading, error, waking };
 }

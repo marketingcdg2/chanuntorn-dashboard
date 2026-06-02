@@ -1,4 +1,4 @@
-// App.jsx — real-time backend + date range compare
+// App.jsx
 import { useState, useEffect } from "react";
 import { useAdData }      from "./hooks/useAdData";
 import { fmt }            from "./utils/format";
@@ -57,8 +57,8 @@ export default function App() {
   }
 
   const main = useAdData(projectId, since, until);
-  const { waking } = main;
   const adsets = main.adsets ?? [];
+  const adsetNames = main.adsetNames ?? [];
   const cmp  = useAdData(compareMode ? projectId : null, cmpRange.since, cmpRange.until);
 
   const project   = PROJECTS.find(p => p.id === projectId);
@@ -68,7 +68,6 @@ export default function App() {
     <div className="app">
       <Header projectLabel={project.label} monthLabel={dateLabel} />
 
-      {/* Toolbar */}
       <div className="toolbar">
         <div className="toolbar-left">
           <select className="toolbar-select" value={projectId} onChange={e => setProjectId(e.target.value)}>
@@ -123,8 +122,8 @@ export default function App() {
             <AgeGenderCharts audience={main.audience}   campaigns={main.campaigns} />
             <AudienceTable   audience={main.audience} />
             <RegionTable     regions={main.regions}     audience={main.audience}  campaigns={main.campaigns} />
+            <AdSetStats      adsetNames={adsetNames} />
             <ContentGrid     ads={main.ads} projectId={projectId} />
-            <AdSetStats      adsets={adsets} />
           </>
         )}
       </main>
