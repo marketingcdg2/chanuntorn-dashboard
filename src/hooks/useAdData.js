@@ -32,7 +32,7 @@ export function useAdData(projectId, since, until) {
     const params  = `account_id=${accountId}&since=${since}&until=${until}`;
     const timeout = 60000;
 
-    async function fetchWithWakeup(url) {
+    async function fetchOne(url) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeout);
       try {
@@ -50,25 +50,24 @@ export function useAdData(projectId, since, until) {
       .then(() => setWaking(false))
       .catch(() => setWaking(true));
 
-    Promise.all([
-      fetchWithWakeup(`${BACKEND}/api/insights?${params}`),
-      fetchWithWakeup(`${BACKEND}/api/ads?${params}`),
-      fetchWithWakeup(`${BACKEND}/api/audience?${params}`),
-      fetchWithWakeup(`${BACKEND}/api/regions?${params}`),
-      fetchWithWakeup(`${BACKEND}/api/adsets?${params}`),
-      fetchWithWakeup(`${BACKEND}/api/adset-names?${params}`),
+    Promise.allSettled([
+      fetchOne(`${BACKEND}/api/insights?${params}`),
+      fetchOne(`${BACKEND}/api/ads?${params}`),
+      fetchOne(`${BACKEND}/api/audience?${params}`),
+      fetchOne(`${BACKEND}/api/regions?${params}`),
+      fetchOne(`${BACKEND}/api/adsets?${params}`),
+      fetchOne(`${BACKEND}/api/adset-names?${params}`),
     ])
       .then(([ins, ads, aud, reg, adsets, adsetNames]) => {
-        setCampaigns(ins?.data || []);
-        setAds(ads?.data || []);
-        setAudience(aud?.data || []);
-        setRegions(reg?.data || []);
-        setAdsets(adsets?.data || []);
-        setAdsetNames(adsetNames?.data || []);
-        setWaking(false);
-      })
-      .catch(err => {
-        setError(err.message);
+        if (ins.status === "fulfilled")        setCampaigns(ins.value?.data || []);
+        if (ads.status === "fulfilled")        setAds(ads.value?.data || []);
+        if (aud.status === "fulfilled")        setAudience(aud.value?.data || []);
+        if (reg.status === "fulfilled")        setRegions(reg.value?.data || []);
+        if (adsets.status === "fulfilled")     setAdsets(adsets.value?.data || []);
+        if (adsetNames.status === "fulfilled") setAdsetNames(adsetNames.value?.data || []);
+
+        // error ถ้า endpoint หลักล้มเหลว
+        if (ins.status === "rejected") setError(ins.reason?.message || "ดึงข้อมูลไม่สำเร็จ");
         setWaking(false);
       })
       .finally(() => setLoading(false));
