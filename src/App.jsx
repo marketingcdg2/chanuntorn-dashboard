@@ -8,9 +8,10 @@ import KpiGrid         from "./components/KpiGrid";
 import CompareKpi      from "./components/CompareKpi";
 import SpendChart      from "./components/SpendChart";
 import AgeGenderCharts from "./components/AgeGenderCharts";
+import AudienceTable   from "./components/AudienceTable";
 import RegionTable     from "./components/RegionTable";
 import ContentGrid     from "./components/ContentGrid";
-import AdSetStats     from "./components/AdSetStats";
+import AdSetStats      from "./components/AdSetStats";
 import DateRangePicker from "./components/DateRangePicker";
 
 const PROJECTS = [
@@ -23,11 +24,10 @@ function today()     { return new Date().toISOString().slice(0,10); }
 function monthStart(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`; }
 function budgetKey(pid,s,u){ return `budget_${pid}_${s}_${u}`; }
 
-// คำนวณช่วงเวลาย้อนหลังตามจำนวนวันเดียวกัน
 function prevRange(since, until) {
   const s = new Date(since);
   const u = new Date(until);
-  const days = Math.round((u - s) / 86400000); // จำนวนวันที่เลือก
+  const days = Math.round((u - s) / 86400000);
   const ps = new Date(s); ps.setDate(ps.getDate() - days - 1);
   const pu = new Date(s); pu.setDate(pu.getDate() - 1);
   return {
@@ -43,7 +43,6 @@ export default function App() {
   const [compareMode, setCompareMode] = useState(false);
   const [budget,      setBudgetState] = useState(0);
 
-  // คำนวณช่วงเปรียบเทียบอัตโนมัติตามจำนวนวันที่เลือก
   const cmpRange = prevRange(since, until);
 
   useEffect(() => {
@@ -57,11 +56,9 @@ export default function App() {
     setBudgetState(n);
   }
 
-  // ดึงข้อมูลหลัก — ทุก endpoint พร้อมกัน
   const main = useAdData(projectId, since, until);
   const { waking } = main;
   const adsets = main.adsets ?? [];
-  // ดึงข้อมูลเปรียบเทียบ — ย้อนหลังตามจำนวนวันที่เลือก
   const cmp  = useAdData(compareMode ? projectId : null, cmpRange.since, cmpRange.until);
 
   const project   = PROJECTS.find(p => p.id === projectId);
@@ -100,7 +97,6 @@ export default function App() {
       </div>
 
       <main className="main">
-        {/* Loading */}
         {main.waking && !main.loading && (
           <div className="loading-bar" style={{background:"#FFF9DB",borderColor:"#F59F00",color:"#E67700"}}>
             ☕ กำลังปลุก server... รอสักครู่ประมาณ 30-50 วินาที
@@ -125,6 +121,7 @@ export default function App() {
                   budget={budget}            onBudgetChange={setBudget} />}
             <SpendChart      campaigns={main.campaigns} budget={budget} />
             <AgeGenderCharts audience={main.audience}   campaigns={main.campaigns} />
+            <AudienceTable   audience={main.audience} />
             <RegionTable     regions={main.regions}     audience={main.audience}  campaigns={main.campaigns} />
             <ContentGrid     ads={main.ads} projectId={projectId} />
             <AdSetStats      adsets={adsets} />
