@@ -2,6 +2,7 @@ require("dotenv").config();
 const express    = require("express");
 const cors       = require("cors");
 const multer     = require("multer");
+const path       = require("path");
 const { v2: cloudinary } = require("cloudinary");
 
 const app   = express();
@@ -16,6 +17,9 @@ cloudinary.config({
 
 app.use(cors());
 app.use(express.json());
+
+// ── Serve React frontend ──────────────────────────────────────────────────
+app.use(express.static(path.join(__dirname, "dist")));
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -233,6 +237,11 @@ app.get("/api/adset-names", async (req, res) => {
 
     res.json({ data: rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Catch-all: ส่ง React app สำหรับทุก route ที่ไม่ใช่ /api ──────────────
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
 app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
