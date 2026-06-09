@@ -1,7 +1,7 @@
 // hooks/useAdData.js
 import { useState, useEffect, useRef } from "react";
 
-const BACKEND = "https://chanuntorn-backend.onrender.com";
+const BACKEND = import.meta.env.VITE_API_URL || "";
 
 const ACCOUNTS = {
   motto: "2067772447288424",
@@ -40,14 +40,18 @@ export function useAdData(projectId, since, until) {
     }
 
     async function loadAll() {
-      // ลอง wakeup ก่อน
+      // ลอง health check ก่อนเพื่อปลุก server
       try {
-        await fetchOne(`${BACKEND}/api/insights?${params}`);
+        const r = await fetch(`${BACKEND}/api/health`);
+        if (!r.ok) throw new Error("waking");
       } catch {
         if (!cancelledRef.current) setWaking(true);
+        // รอ 3 วินาทีแล้วลองใหม่
+        await new Promise(res => setTimeout(res, 3000));
       }
 
       if (cancelledRef.current) return;
+      setWaking(false);
 
       const results = await Promise.allSettled([
         fetchOne(`${BACKEND}/api/insights?${params}`),
@@ -60,15 +64,15 @@ export function useAdData(projectId, since, until) {
 
       if (cancelledRef.current) return;
 
-      const [ins, adsR, aud, reg, adsets, adsetNames] = results;
-      if (ins.status        === "fulfilled") setCampaigns(ins.value?.data || []);
-      if (adsR.status       === "fulfilled") setAds(adsR.value?.data || []);
-      if (aud.status        === "fulfilled") setAudience(aud.value?.data || []);
-      if (reg.status        === "fulfilled") setRegions(reg.value?.data || []);
-      if (adsets.status     === "fulfilled") setAdsets(adsets.value?.data || []);
-      if (adsetNames.status === "fulfilled") setAdsetNames(adsetNames.value?.data || []);
-      if (ins.status        === "rejected")  setError(ins.reason?.message || "ดึงข้อมูลไม่สำเร็จ");
-      setWaking(false);
+      const [ins, adsR, aud, reg, adsetR, adsetNamesR] = results;
+      if (ins.status          === "fulfilled") setCampaigns(ins.value?.data || []);
+      if (adsR.status         === "fulfilled") setAds(adsR.value?.data || []);
+      if (aud.status          === "fulfilled") setAudience(aud.value?.data || []);
+      if (reg.status          === "fulfilled") setRegions(reg.value?.data || []);
+      if (adsetR.status       === "fulfilled") setAdsets(adsetR.value?.data || []);
+      if (adsetNamesR.status  === "fulfilled") setAdsetNames(adsetNamesR.value?.data || []);
+      if (ins.status          === "rejected")  setError(ins.reason?.message || "ดึงข้อมูลไม่สำเร็จ");
+
       setLoading(false);
     }
 
