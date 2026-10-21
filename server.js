@@ -1,9 +1,11 @@
-require("dotenv").config();
-const express    = require("express");
-const cors       = require("cors");
-const multer     = require("multer");
-const path       = require("path");
-const { v2: cloudinary } = require("cloudinary");
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import multer from 'multer';
+import { v2 as cloudinary } from 'cloudinary';
+import { resolve } from 'node:path';
+import { createManualStore } from './server/manual-store.js';
+import { registerReportApi } from './server/report-api.js';
 
 const app   = express();
 const TOKEN = process.env.FB_TOKEN;
@@ -26,7 +28,9 @@ app.use(cors({
     cb(new Error("Not allowed by CORS"));
   }
 }));
-app.use(express.json());
+app.use(express.json({ limit: '64kb' }));
+const store = createManualStore(resolve(process.env.DATA_DIR || './data', 'results.sqlite'));
+registerReportApi(app, store);
 
 // ── Health check (ให้ cron-job.org ping เพื่อไม่ให้ server หลับ) ──────────
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
@@ -84,11 +88,10 @@ app.get("/api/insights", async (req, res) => {
   if (!account_id || !since || !until)
     return res.status(400).json({ error: "ต้องส่ง account_id, since, until" });
   const fields = "campaign_name,objective,spend,impressions,reach,clicks,ctr,cpm,cpc,actions";
-  const url = `https://graph.facebook.com/v19.0/act_${account_id}/insights`
+  const url = `https://graph.facebook.com/${process.env.META_API_VERSION || "v25.0"}/act_${account_id}/insights`
     + `?fields=${fields}&time_range={"since":"${since}","until":"${until}"}`
     + `&level=campaign&limit=100&access_token=${TOKEN}`;
   try {
-    const { default: fetch } = await import("node-fetch");
     const data = await (await fetch(url)).json();
     if (data.error) return res.status(400).json(data.error);
     const rows = (data.data||[]).map(r => {
@@ -107,11 +110,10 @@ app.get("/api/ads", async (req, res) => {
   if (!account_id || !since || !until)
     return res.status(400).json({ error: "ต้องส่ง account_id, since, until" });
   const fields = "ad_name,objective,spend,impressions,reach,clicks,actions";
-  const url = `https://graph.facebook.com/v19.0/act_${account_id}/insights`
+  const url = `https://graph.facebook.com/${process.env.META_API_VERSION || "v25.0"}/act_${account_id}/insights`
     + `?fields=${fields}&time_range={"since":"${since}","until":"${until}"}`
     + `&level=ad&limit=200&access_token=${TOKEN}`;
   try {
-    const { default: fetch } = await import("node-fetch");
     const data = await (await fetch(url)).json();
     if (data.error) return res.status(400).json(data.error);
     const map = {};
@@ -133,12 +135,11 @@ app.get("/api/audience", async (req, res) => {
   if (!account_id || !since || !until)
     return res.status(400).json({ error: "ต้องส่ง account_id, since, until" });
   const fields = "spend,impressions,reach,clicks,ctr,cpm,cpc";
-  const url = `https://graph.facebook.com/v19.0/act_${account_id}/insights`
+  const url = `https://graph.facebook.com/${process.env.META_API_VERSION || "v25.0"}/act_${account_id}/insights`
     + `?fields=${fields}&breakdowns=age,gender`
     + `&time_range={"since":"${since}","until":"${until}"}`
     + `&level=account&limit=200&access_token=${TOKEN}`;
   try {
-    const { default: fetch } = await import("node-fetch");
     const data = await (await fetch(url)).json();
     if (data.error) return res.status(400).json(data.error);
     res.json({ data:(data.data||[]).map(r=>({age:r.age,gender:r.gender,
@@ -153,12 +154,11 @@ app.get("/api/regions", async (req, res) => {
   if (!account_id || !since || !until)
     return res.status(400).json({ error: "ต้องส่ง account_id, since, until" });
   const fields = "spend,impressions,reach,clicks,ctr,cpm";
-  const url = `https://graph.facebook.com/v19.0/act_${account_id}/insights`
+  const url = `https://graph.facebook.com/${process.env.META_API_VERSION || "v25.0"}/act_${account_id}/insights`
     + `?fields=${fields}&breakdowns=region`
     + `&time_range={"since":"${since}","until":"${until}"}`
     + `&level=account&limit=200&access_token=${TOKEN}`;
   try {
-    const { default: fetch } = await import("node-fetch");
     const data = await (await fetch(url)).json();
     if (data.error) return res.status(400).json(data.error);
     res.json({ data:(data.data||[]).map(r=>({region:r.region,spend:parseFloat(r.spend||0),
@@ -172,12 +172,11 @@ app.get("/api/adsets", async (req, res) => {
   if (!account_id || !since || !until)
     return res.status(400).json({ error: "ต้องส่ง account_id, since, until" });
   const fields = "spend,impressions,reach,actions";
-  const url = `https://graph.facebook.com/v19.0/act_${account_id}/insights`
+  const url = `https://graph.facebook.com/${process.env.META_API_VERSION || "v25.0"}/act_${account_id}/insights`
     + `?fields=${fields}&breakdowns=gender`
     + `&time_range={"since":"${since}","until":"${until}"}`
     + `&level=account&limit=200&access_token=${TOKEN}`;
   try {
-    const { default: fetch } = await import("node-fetch");
     const data = await (await fetch(url)).json();
     if (data.error) return res.status(400).json(data.error);
     const genderMap = {};
@@ -203,12 +202,11 @@ app.get("/api/adset-names", async (req, res) => {
   if (!account_id || !since || !until)
     return res.status(400).json({ error: "ต้องส่ง account_id, since, until" });
   const fields = "adset_name,spend,impressions,reach,clicks,actions";
-  const url = `https://graph.facebook.com/v19.0/act_${account_id}/insights`
+  const url = `https://graph.facebook.com/${process.env.META_API_VERSION || "v25.0"}/act_${account_id}/insights`
     + `?fields=${fields}`
     + `&time_range={"since":"${since}","until":"${until}"}`
     + `&level=adset&limit=500&access_token=${TOKEN}`;
   try {
-    const { default: fetch } = await import("node-fetch");
     const data = await (await fetch(url)).json();
     if (data.error) return res.status(400).json(data.error);
     const map = {};
