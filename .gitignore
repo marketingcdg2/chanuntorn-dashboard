@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Durable server records and credentials
+data/
+.env
+.env.local
